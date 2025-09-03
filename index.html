@@ -113,14 +113,16 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "SENDER_ID",
-      appId: "APP_ID"
-    };
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDdV0eWEfstURCnEkzxOABxu_F72IfdaO0",
+    authDomain: "techtamil-mentorship.firebaseapp.com",
+    projectId: "techtamil-mentorship",
+    storageBucket: "techtamil-mentorship.firebasestorage.app",
+    messagingSenderId: "1026464881067",
+    appId: "1:1026464881067:web:68c914a54277d74ed99aee",
+    measurementId: "G-K64GVYDGED"
+  };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
