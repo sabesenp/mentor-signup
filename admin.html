@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Admin — Mentor Apps</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body{font-family:system-ui,Arial;margin:2rem;max-width:960px}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid #ddd;padding:.6rem;text-align:left;vertical-align:top}
+  th{background:#f7f7f7}
+  button{padding:.5rem .8rem;border:1px solid #ccc;border-radius:10px}
+  .warn{color:#b00020}
+</style>
+</head>
+<body>
+<h1>Mentor Applications (Admin)</h1>
+<p>Sign in with Google. Only accounts marked as <code>admin</code> in <code>profiles/&lt;uid&gt;</code> can view data.</p>
+<div id="auth"></div>
+<table id="tbl" style="display:none">
+  <thead><tr>
+    <th>Name</th><th>Email</th><th>LinkedIn</th><th>Skills</th>
+    <th>Years</th><th>Languages</th><th>Availability</th><th>Mode</th><th>Timezone</th><th>Bio</th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+  import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const authDiv = document.getElementById('auth');
+  const tbl = document.getElementById('tbl');
+  const rows = document.getElementById('rows');
+
+  function renderAuth(user){
+    if(!user){
+      authDiv.innerHTML = `<button id="login">Sign in with Google</button>`;
+      document.getElementById('login').onclick = async () => {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      };
+      tbl.style.display = 'none';
+      return;
+    }
+    authDiv.innerHTML = `Signed in as ${user.email} <button id="logout">Sign out</button>`;
+    document.getElementById('logout').onclick = () => signOut(auth);
+  }
+
+  async function checkAdmin(uid){
+    const p = await getDoc(doc(db, "profiles", uid));
+    return p.exists() && p.data().admin === true;
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    renderAuth(user);
+    if(!user) return;
+
+    if(!(await checkAdmin(user.uid))){
+      authDiv.innerHTML += `<p class="warn">You are not an admin.</p>`;
+      return;
+    }
+
+    const q = query(collection(db, "mentorApplications"), orderBy("createdAt","desc"));
+    onSnapshot(q, (snap) => {
+      rows.innerHTML = "";
+      snap.forEach(docu => {
+        const d = docu.data();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${d.name || ""}</td>
+          <td>${d.email || ""}</td>
+          <td><a href="${d.linkedin}" target="_blank" rel="noopener">Profile</a></td>
+          <td>${(d.skills||[]).join(', ')}</td>
+          <td>${d.years ?? ""}</td>
+          <td>${(d.languages||[]).join(', ')}</td>
+          <td>${(d.availability||[]).join(', ')}</td>
+          <td>${d.mode || ""}</td>
+          <td>${d.timezone || ""}</td>
+          <td>${(d.bio||"").replace(/</g,"&lt;")}</td>
+        `;
+        rows.appendChild(tr);
+      });
+      tbl.style.display = 'table';
+    }, (e) => {
+      authDiv.innerHTML += `<p class="warn">Error loading: ${e.message}</p>`;
+    });
+  });
+</script>
+</body>
+</html>

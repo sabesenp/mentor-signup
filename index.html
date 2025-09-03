@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mentor Sign-Up</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 2rem; max-width: 860px; }
+    form { display: grid; gap: 1rem; }
+    fieldset { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; }
+    input, select, textarea, button { padding: .7rem; border: 1px solid #ccc; border-radius: 10px; width: 100%; }
+    label { font-weight: 600; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .hint { font-size: .9rem; color: #666; }
+    .pillbox { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .error { color: #b00020; }
+    .success { background: #f0fff4; border: 1px solid #b7ebc6; padding: .8rem; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Become a Mentor</h1>
+  <p class="hint">Fill this out to help students find you. We’ll review applications and get back to you by email.</p>
+
+  <div id="msg"></div>
+
+  <form id="mentorForm" novalidate>
+    <fieldset>
+      <legend>Basic Info</legend>
+      <div class="row">
+        <div>
+          <label for="name">Full Name*</label>
+          <input id="name" required placeholder="Jane Doe" />
+        </div>
+        <div>
+          <label for="email">Email*</label>
+          <input id="email" type="email" required placeholder="jane@example.com" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="linkedin">LinkedIn URL*</label>
+          <input id="linkedin" type="url" required placeholder="https://linkedin.com/in/..." />
+        </div>
+        <div>
+          <label for="timezone">Time Zone*</label>
+          <select id="timezone" required>
+            <option value="">Select…</option>
+            <option>America/Toronto</option>
+            <option>America/Vancouver</option>
+            <option>Europe/London</option>
+            <option>Asia/Colombo</option>
+            <option>Asia/Kolkata</option>
+            <option>UTC</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Expertise & Background</legend>
+      <div class="row">
+        <div>
+          <label for="skills">Primary Skills (comma-separated)*</label>
+          <input id="skills" required placeholder="e.g., React, AWS, Data Science" />
+        </div>
+        <div>
+          <label for="years">Years of Experience*</label>
+          <input id="years" type="number" min="0" max="50" required placeholder="3" />
+        </div>
+      </div>
+
+      <label for="languages">Languages (comma-separated)</label>
+      <input id="languages" placeholder="English, Tamil" />
+
+      <label for="bio">Short Bio (max 500 chars)*</label>
+      <textarea id="bio" maxlength="500" rows="5" required placeholder="Tell us how you can help mentees…"></textarea>
+      <div class="hint"><span id="bioCount">0</span>/500</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Availability & Preferences</legend>
+      <div class="row">
+        <div>
+          <label>Availability*</label>
+          <div class="pillbox">
+            <label><input type="checkbox" name="days" value="Mon" /> Mon</label>
+            <label><input type="checkbox" name="days" value="Tue" /> Tue</label>
+            <label><input type="checkbox" name="days" value="Wed" /> Wed</label>
+            <label><input type="checkbox" name="days" value="Thu" /> Thu</label>
+            <label><input type="checkbox" name="days" value="Fri" /> Fri</label>
+            <label><input type="checkbox" name="days" value="Sat" /> Sat</label>
+            <label><input type="checkbox" name="days" value="Sun" /> Sun</label>
+          </div>
+        </div>
+        <div>
+          <label for="mode">Meeting Mode*</label>
+          <select id="mode" required>
+            <option value="">Select…</option>
+            <option>Virtual</option>
+            <option>In-person</option>
+            <option>Either</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <label><input id="consent" type="checkbox" required /> I agree to be contacted about mentoring opportunities*</label>
+    <button type="submit">Submit Application</button>
+    <div id="error" class="error"></div>
+  </form>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const f = document.getElementById('mentorForm');
+    const msg = document.getElementById('msg');
+    const err = document.getElementById('error');
+    const bio = document.getElementById('bio');
+    const bioCount = document.getElementById('bioCount');
+
+    bio.addEventListener('input', () => bioCount.textContent = bio.value.length);
+    const getChecked = (n)=>Array.from(document.querySelectorAll(`input[name="${n}"]:checked`)).map(i=>i.value);
+    const validUrl = (u)=>{try{const x=new URL(u);return ['http:','https:'].includes(x.protocol)}catch{return false}};
+
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent=''; msg.innerHTML='';
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      const linkedin = document.getElementById('linkedin').value.trim();
+      const timezone = document.getElementById('timezone').value;
+      const skills = document.getElementById('skills').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const years = parseInt(document.getElementById('years').value,10);
+      const languages = document.getElementById('languages').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const bioText = bio.value.trim();
+      const days = getChecked('days');
+      const mode = document.getElementById('mode').value;
+      const consent = document.getElementById('consent').checked;
+
+      if (!name || !email || !linkedin || !timezone || !skills.length || isNaN(years) || !bioText || !days.length || !mode || !consent) {
+        err.textContent = "Please complete all required fields."; return;
+      }
+      if (!validUrl(linkedin) || !linkedin.includes('linkedin.com')) { err.textContent = "Enter a valid LinkedIn URL."; return; }
+      if (bioText.length > 500) { err.textContent = "Bio must be ≤ 500 chars."; return; }
+      if (years < 0 || years > 50) { err.textContent = "Years must be 0–50."; return; }
+
+      const payload = {
+        name, email, linkedin, timezone,
+        skills, years, languages, bio: bioText,
+        availability: days, mode,
+        consent, createdAt: serverTimestamp(),
+        emailDomain: email.split('@')[1] || ''
+      };
+
+      try {
+        await addDoc(collection(db, "mentorApplications"), payload);
+        f.reset(); bioCount.textContent='0';
+        msg.innerHTML = `<div class="success"><strong>Thanks!</strong> Your application was submitted.</div>`;
+      } catch (e2) {
+        console.error(e2); err.textContent = "Submission failed. Try again.";
+      }
+    });
+  </script>
+</body>
+</html>
